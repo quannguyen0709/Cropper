@@ -113,12 +113,12 @@ open class TransformState(
         val newZoom = (this.zoom * zoomChange).coerceIn(zoomMin, zoomMax)
 
         snapZoomTo(newZoom)
-        val newRotation = if (rotatable) {
-            this.rotation + rotationChange
-        } else {
-            0f
-        }
-        snapRotationTo(newRotation)
+//        val newRotation = if (rotatable) {
+//            this.rotation + rotationChange
+//        } else {
+//            0f
+//        }
+//        snapRotationTo(newRotation)
 
         if (pannable) {
             val newPan = this.pan + panChange.times(this.zoom)
