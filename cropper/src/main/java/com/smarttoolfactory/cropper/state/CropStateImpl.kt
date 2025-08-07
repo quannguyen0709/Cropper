@@ -190,6 +190,101 @@ abstract class CropState internal constructor(
         animatableRectOverlay.snapTo(rect)
     }
 
+    /**
+     * Set rotation programmatically without affecting other states
+     * This method allows external control of rotation without triggering recomposition
+     */
+     suspend fun setRotation(rotation: Float, animate: Boolean = true) {
+        val normalizedRotation = rotation % 360f
+        if (animate) {
+            animateRotationTo(normalizedRotation)
+        } else {
+            snapRotationTo(normalizedRotation)
+        }
+        
+        // Update draw area rect after rotation change
+        drawAreaRect = updateImageDrawRectFromTransformation()
+    }
+
+    /**
+     * Get current rotation value
+     */
+    internal fun getCurrentRotation(): Float {
+        return animatableRotation.targetValue
+    }
+
+    /**
+     * Set pan programmatically without affecting other states
+     */
+    internal suspend fun setPan(pan: Offset, animate: Boolean = true) {
+        if (animate) {
+            animatePanXto(pan.x)
+            animatePanYto(pan.y)
+        } else {
+            snapPanXto(pan.x)
+            snapPanYto(pan.y)
+        }
+        
+        // Update draw area rect after pan change
+        drawAreaRect = updateImageDrawRectFromTransformation()
+    }
+
+    /**
+     * Set zoom programmatically without affecting other states
+     */
+     suspend fun setZoom(zoom: Float, animate: Boolean = true) {
+        val clampedZoom = zoom.coerceIn(zoomMin, zoomMax)
+        if (animate) {
+            animateZoomTo(clampedZoom)
+        } else {
+            snapZoomTo(clampedZoom)
+        }
+        
+        // Update draw area rect after zoom change
+        drawAreaRect = updateImageDrawRectFromTransformation()
+    }
+
+    /**
+     * Set all transformations programmatically
+     */
+    internal suspend fun setTransformations(
+        pan: Offset? = null,
+        zoom: Float? = null,
+        rotation: Float? = null,
+        animate: Boolean = true
+    ) {
+        if (pan != null) {
+            if (animate) {
+                animatePanXto(pan.x)
+                animatePanYto(pan.y)
+            } else {
+                snapPanXto(pan.x)
+                snapPanYto(pan.y)
+            }
+        }
+        
+        if (zoom != null) {
+            val clampedZoom = zoom.coerceIn(zoomMin, zoomMax)
+            if (animate) {
+                animateZoomTo(clampedZoom)
+            } else {
+                snapZoomTo(clampedZoom)
+            }
+        }
+        
+        if (rotation != null) {
+            val normalizedRotation = rotation % 360f
+            if (animate) {
+                animateRotationTo(normalizedRotation)
+            } else {
+                snapRotationTo(normalizedRotation)
+            }
+        }
+        
+        // Update draw area rect after all changes
+        drawAreaRect = updateImageDrawRectFromTransformation()
+    }
+
     /*
         Touch gestures
      */
@@ -592,4 +687,64 @@ abstract class CropState internal constructor(
             size = Size(croppedBitmapWidth, croppedBitmapHeight)
         )
     }
+}
+
+/**
+ * Extension functions for easy external control of crop state transformations
+ */
+
+/**
+ * Set rotation programmatically based on crop type
+ */
+suspend fun CropState.setRotation(rotation: Float, animate: Boolean = true) {
+    when (this) {
+        is DynamicCropState -> setRotationDynamic(rotation, animate)
+        is StaticCropState -> setRotationStatic(rotation, animate)
+        else -> setRotation(rotation, animate)
+    }
+}
+
+/**
+ * Set pan programmatically based on crop type
+ */
+suspend fun CropState.setPan(pan: Offset, animate: Boolean = true) {
+    when (this) {
+        is DynamicCropState -> setPanDynamic(pan, animate)
+        is StaticCropState -> setPanStatic(pan, animate)
+        else -> setPan(pan, animate)
+    }
+}
+
+/**
+ * Set zoom programmatically based on crop type
+ */
+suspend fun CropState.setZoom(zoom: Float, animate: Boolean = true) {
+    when (this) {
+        is DynamicCropState -> setZoomDynamic(zoom, animate)
+        is StaticCropState -> setZoomStatic(zoom, animate)
+        else -> setZoom(zoom, animate)
+    }
+}
+
+/**
+ * Set all transformations programmatically based on crop type
+ */
+suspend fun CropState.setTransformations(
+    pan: Offset? = null,
+    zoom: Float? = null,
+    rotation: Float? = null,
+    animate: Boolean = true
+) {
+    when (this) {
+        is DynamicCropState -> setTransformationsDynamic(pan, zoom, rotation, animate)
+        is StaticCropState -> setTransformationsStatic(pan, zoom, rotation, animate)
+        else -> setTransformations(pan, zoom, rotation, animate)
+    }
+}
+
+/**
+ * Get current rotation value
+ */
+fun CropState.getCurrentRotation(): Float {
+    return getCurrentRotation()
 }

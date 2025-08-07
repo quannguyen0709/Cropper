@@ -6,6 +6,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
@@ -40,6 +42,9 @@ import com.smarttoolfactory.cropper.model.RectCropShape
 import com.smarttoolfactory.cropper.settings.*
 import kotlinx.coroutines.launch
 import androidx.compose.ui.geometry.Offset
+import com.smarttoolfactory.cropper.state.CropState
+import androidx.compose.runtime.rememberCoroutineScope
+import com.smarttoolfactory.cropper.state.setTransformations
 
 internal enum class SelectionPage {
     Properties, Style
@@ -94,9 +99,9 @@ fun ImageCropDemo() {
     }
 
     ComposeCropperTheme(
-        darkTheme = when(theme){
-            CropTheme.Dark ->true
-            CropTheme.Light->false
+        darkTheme = when (theme) {
+            CropTheme.Dark -> true
+            CropTheme.Light -> false
             else -> isSystemInDarkTheme()
         }
     ) {
@@ -168,7 +173,6 @@ private fun MainContent(
     var imageBitmap by remember { mutableStateOf(imageBitmapLarge) }
     var croppedImage by remember { mutableStateOf<ImageBitmap?>(null) }
 
-
     var crop by remember { mutableStateOf(false) }
     var showDialog by remember { mutableStateOf(false) }
     var isCropping by remember { mutableStateOf(false) }
@@ -177,6 +181,10 @@ private fun MainContent(
     var currentRotation by remember { mutableStateOf(0f) }
     var currentZoom by remember { mutableStateOf(1f) }
     var currentPan by remember { mutableStateOf(Offset.Zero) }
+
+    // Store reference to cropState for external control
+    var cropState by remember { mutableStateOf<CropState?>(null) }
+    val coroutineScope = rememberCoroutineScope()
 
     Box(
         modifier = Modifier
@@ -191,21 +199,113 @@ private fun MainContent(
                     .fillMaxWidth()
                     .weight(1f),
                 imageBitmap = imageBitmap,
-                contentDescription = "Image Cropper",
+                contentDescription = "Image to crop",
                 cropStyle = cropStyle,
                 cropProperties = cropProperties,
                 crop = crop,
+                backgroundColor = Color.Black,
                 onCropStart = {
                     isCropping = true
                 },
-                onCropSuccess = {
-                    croppedImage = it
-                    isCropping = false
+                onCropSuccess = { croppedImageBitmap ->
+                    croppedImage = croppedImageBitmap
                     crop = false
                     showDialog = true
+                },
+                onCropStateReady = { state ->
+                    cropState = state
                 }
             )
         }
+
+        // Demo: Programmatic Control Buttons
+        if (cropState != null) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                elevation = 4.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = "Programmatic Control Demo",
+                        style = MaterialTheme.typography.h6,
+                        color = Color.White
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        // Rotation Button
+                        Button(
+                            onClick = {
+                                currentRotation = (currentRotation + 90f) % 360f
+                                coroutineScope.launch {
+                                    cropState?.setRotation(currentRotation, animate = true)
+                                }
+                            }
+                        ) {
+                            Icon(
+                                Icons.Filled.RotateRight,
+                                contentDescription = "Rotate 90°"
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Rotate 90°")
+                        }
+
+                        // Zoom Button
+                        Button(
+                            onClick = {
+                                currentZoom = if (currentZoom >= 3f) 1f else currentZoom + 0.5f
+                                coroutineScope.launch {
+                                    cropState?.setZoom(currentZoom, animate = true)
+                                }
+                            }
+                        ) {
+                            Text("Zoom ${String.format("%.1f", currentZoom)}x")
+                        }
+
+                        // Reset Button
+                        Button(
+                            onClick = {
+                                currentRotation = 0f
+                                currentZoom = 1f
+                                currentPan = Offset.Zero
+                                coroutineScope.launch {
+                                    cropState?.setTransformations(
+                                        pan = Offset.Zero,
+                                        zoom = 1f,
+                                        rotation = 0f,
+                                        animate = true
+                                    )
+                                }
+                            }
+                        ) {
+                            Text("Reset")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Current: Rotation=${currentRotation.toInt()}°, Zoom=${
+                            String.format(
+                                "%.1f",
+                                currentZoom
+                            )
+                        }x",
+                        style = MaterialTheme.typography.body2,
+                        color = Color.White.copy(alpha = 0.7f)
+                    )
+                }
+            }
+        }
+
 
         BottomAppBar(
             modifier = Modifier.align(Alignment.BottomStart),
@@ -264,6 +364,7 @@ private fun MainContent(
         }
     }
 
+
     if (showDialog) {
         croppedImage?.let {
             ShowCroppedImageDialog(imageBitmap = it) {
@@ -273,6 +374,7 @@ private fun MainContent(
         }
     }
 }
+
 
 @Composable
 private fun ShowCroppedImageDialog(imageBitmap: ImageBitmap, onDismissRequest: () -> Unit) {

@@ -36,6 +36,7 @@ import com.smarttoolfactory.cropper.settings.CropStyle
 import com.smarttoolfactory.cropper.settings.CropType
 import com.smarttoolfactory.cropper.state.DynamicCropState
 import com.smarttoolfactory.cropper.state.rememberCropState
+import com.smarttoolfactory.cropper.state.CropState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -53,6 +54,7 @@ fun ImageCropper(
     onCropStart: () -> Unit,
     onCropSuccess: (ImageBitmap) -> Unit,
     onDrawGrid: (DrawScope.(rect: Rect, strokeWidth: Float, color: Color) -> Unit)? = null,
+    onCropStateReady: ((CropState) -> Unit)? = null,
 ) {
 
     ImageWithConstraints(
@@ -158,6 +160,11 @@ fun ImageCropper(
 
         LaunchedEffect(key1 = cropProperties) {
             cropState.updateProperties(cropProperties)
+        }
+
+        // Notify when cropState is ready for external control
+        LaunchedEffect(cropState) {
+            onCropStateReady?.invoke(cropState)
         }
 
         /// Create a MutableTransitionState<Boolean> for the AnimatedVisibility.

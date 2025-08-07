@@ -91,6 +91,93 @@ class DynamicCropState internal constructor(
         super.updateProperties(cropProperties, forceUpdate)
     }
 
+    /**
+     * Set rotation programmatically for dynamic crop state
+     * This method updates overlay bounds after rotation to ensure proper constraints
+     */
+    internal suspend fun setRotationDynamic(rotation: Float, animate: Boolean = true) {
+        setRotation(rotation, animate)
+        
+        // For dynamic crop, we need to ensure overlay stays within bounds after rotation
+        if (!isOverlayInImageDrawBounds()) {
+            // Recalculate overlay bounds based on new rotation
+            val newOverlayRect = getOverlayFromAspectRatio(
+                containerSize.width.toFloat(),
+                containerSize.height.toFloat(),
+                drawAreaSize.width.toFloat(),
+                aspectRatio,
+                overlayRatio
+            )
+            
+            if (animate) {
+                animateOverlayRectTo(newOverlayRect)
+            } else {
+                snapOverlayRectTo(newOverlayRect)
+            }
+        }
+        
+        // Update transformation bounds to match new overlay
+        animateTransformationToOverlayBounds(overlayRect, animate)
+    }
+
+    /**
+     * Set pan programmatically for dynamic crop state
+     */
+    internal suspend fun setPanDynamic(pan: Offset, animate: Boolean = true) {
+        setPan(pan, animate)
+        
+        // Ensure overlay stays within image bounds after pan
+        if (!isOverlayInImageDrawBounds()) {
+            animateTransformationToOverlayBounds(overlayRect, animate)
+        }
+    }
+
+    /**
+     * Set zoom programmatically for dynamic crop state
+     */
+    internal suspend fun setZoomDynamic(zoom: Float, animate: Boolean = true) {
+        setZoom(zoom, animate)
+        
+        // Ensure overlay stays within image bounds after zoom
+        if (!isOverlayInImageDrawBounds()) {
+            animateTransformationToOverlayBounds(overlayRect, animate)
+        }
+    }
+
+    /**
+     * Set all transformations programmatically for dynamic crop state
+     */
+    internal suspend fun setTransformationsDynamic(
+        pan: Offset? = null,
+        zoom: Float? = null,
+        rotation: Float? = null,
+        animate: Boolean = true
+    ) {
+        setTransformations(pan, zoom, rotation, animate)
+        
+        // For dynamic crop, ensure overlay stays within bounds after any transformation
+        if (!isOverlayInImageDrawBounds()) {
+            // If rotation changed, recalculate overlay bounds
+            if (rotation != null) {
+                val newOverlayRect = getOverlayFromAspectRatio(
+                    containerSize.width.toFloat(),
+                    containerSize.height.toFloat(),
+                    drawAreaSize.width.toFloat(),
+                    aspectRatio,
+                    overlayRatio
+                )
+                
+                if (animate) {
+                    animateOverlayRectTo(newOverlayRect)
+                } else {
+                    snapOverlayRectTo(newOverlayRect)
+                }
+            }
+            
+            animateTransformationToOverlayBounds(overlayRect, animate)
+        }
+    }
+
     override suspend fun onDown(change: PointerInputChange) {
 
         rectTemp = overlayRect.copy()

@@ -124,4 +124,50 @@ class StaticCropState internal constructor(
         animateTransformationToOverlayBounds(overlayRect, true)
         onAnimationEnd()
     }
+
+    /**
+     * Set rotation programmatically for static crop state
+     * In static crop, only the image moves, overlay stays fixed
+     */
+    internal suspend fun setRotationStatic(rotation: Float, animate: Boolean = true) {
+        setRotation(rotation, animate)
+        
+        // For static crop, ensure image stays within overlay bounds after rotation
+        animateTransformationToOverlayBounds(overlayRect, animate)
+    }
+
+    /**
+     * Set pan programmatically for static crop state
+     */
+    internal suspend fun setPanStatic(pan: Offset, animate: Boolean = true) {
+        setPan(pan, animate)
+        
+        // Ensure image stays within overlay bounds after pan
+        animateTransformationToOverlayBounds(overlayRect, animate)
+    }
+
+    /**
+     * Set zoom programmatically for static crop state
+     */
+    internal suspend fun setZoomStatic(zoom: Float, animate: Boolean = true) {
+        setZoom(zoom, animate)
+        
+        // Ensure image stays within overlay bounds after zoom
+        animateTransformationToOverlayBounds(overlayRect, animate)
+    }
+
+    /**
+     * Set all transformations programmatically for static crop state
+     */
+    internal suspend fun setTransformationsStatic(
+        pan: Offset? = null,
+        zoom: Float? = null,
+        rotation: Float? = null,
+        animate: Boolean = true
+    ) {
+        setTransformations(pan, zoom, rotation, animate)
+        
+        // For static crop, ensure image stays within overlay bounds after any transformation
+        animateTransformationToOverlayBounds(overlayRect, animate)
+    }
 }
