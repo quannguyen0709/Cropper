@@ -99,21 +99,19 @@ class DynamicCropState internal constructor(
         setRotation(rotation, animate)
         
         // For dynamic crop, we need to ensure overlay stays within bounds after rotation
-        if (!isOverlayInImageDrawBounds()) {
-            // Recalculate overlay bounds based on new rotation
-            val newOverlayRect = getOverlayFromAspectRatio(
-                containerSize.width.toFloat(),
-                containerSize.height.toFloat(),
-                drawAreaSize.width.toFloat(),
-                aspectRatio,
-                overlayRatio
-            )
-            
-            if (animate) {
-                animateOverlayRectTo(newOverlayRect)
-            } else {
-                snapOverlayRectTo(newOverlayRect)
-            }
+        // Always recalculate overlay bounds after rotation to ensure proper aspect ratio
+        val newOverlayRect = getOverlayFromAspectRatio(
+            containerSize.width.toFloat(),
+            containerSize.height.toFloat(),
+            drawAreaSize.width.toFloat(),
+            aspectRatio,
+            overlayRatio
+        )
+        
+        if (animate) {
+            animateOverlayRectTo(newOverlayRect)
+        } else {
+            snapOverlayRectTo(newOverlayRect)
         }
         
         // Update transformation bounds to match new overlay
@@ -156,26 +154,25 @@ class DynamicCropState internal constructor(
         setTransformations(pan, zoom, rotation, animate)
         
         // For dynamic crop, ensure overlay stays within bounds after any transformation
-        if (!isOverlayInImageDrawBounds()) {
-            // If rotation changed, recalculate overlay bounds
-            if (rotation != null) {
-                val newOverlayRect = getOverlayFromAspectRatio(
-                    containerSize.width.toFloat(),
-                    containerSize.height.toFloat(),
-                    drawAreaSize.width.toFloat(),
-                    aspectRatio,
-                    overlayRatio
-                )
-                
-                if (animate) {
-                    animateOverlayRectTo(newOverlayRect)
-                } else {
-                    snapOverlayRectTo(newOverlayRect)
-                }
-            }
+        // If rotation changed, always recalculate overlay bounds
+        if (rotation != null) {
+            val newOverlayRect = getOverlayFromAspectRatio(
+                containerSize.width.toFloat(),
+                containerSize.height.toFloat(),
+                drawAreaSize.width.toFloat(),
+                aspectRatio,
+                overlayRatio
+            )
             
-            animateTransformationToOverlayBounds(overlayRect, animate)
+            if (animate) {
+                animateOverlayRectTo(newOverlayRect)
+            } else {
+                snapOverlayRectTo(newOverlayRect)
+            }
         }
+        
+        // Update transformation bounds to match overlay
+        animateTransformationToOverlayBounds(overlayRect, animate)
     }
 
     override suspend fun onDown(change: PointerInputChange) {
@@ -348,21 +345,18 @@ class DynamicCropState internal constructor(
         drawAreaRect = updateImageDrawRectFromTransformation()
 
 
-        if (!isOverlayInImageDrawBounds()) {
-            // Moves rectangle to bounds inside drawArea Rect while keeping aspect ratio
-            // of current overlay rect
-            animateOverlayRectTo(
-                getOverlayFromAspectRatio(
-                    containerSize.width.toFloat(),
-                    containerSize.height.toFloat(),
-                    drawAreaSize.width.toFloat(),
-                    aspectRatio,
-                    overlayRatio
-                )
+        // Always recalculate overlay bounds after double tap to ensure proper aspect ratio
+        animateOverlayRectTo(
+            getOverlayFromAspectRatio(
+                containerSize.width.toFloat(),
+                containerSize.height.toFloat(),
+                drawAreaSize.width.toFloat(),
+                aspectRatio,
+                overlayRatio
             )
+        )
 
-            animateTransformationToOverlayBounds(overlayRect, false)
-        }
+        animateTransformationToOverlayBounds(overlayRect, false)
         onAnimationEnd()
     }
 
