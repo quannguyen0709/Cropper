@@ -11,6 +11,7 @@ import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Crop
+import androidx.compose.material.icons.filled.RotateRight
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.FloatingActionButtonDefaults
@@ -38,6 +39,7 @@ import com.smarttoolfactory.cropper.model.OutlineType
 import com.smarttoolfactory.cropper.model.RectCropShape
 import com.smarttoolfactory.cropper.settings.*
 import kotlinx.coroutines.launch
+import androidx.compose.ui.geometry.Offset
 
 internal enum class SelectionPage {
     Properties, Style
@@ -171,6 +173,11 @@ private fun MainContent(
     var showDialog by remember { mutableStateOf(false) }
     var isCropping by remember { mutableStateOf(false) }
 
+    // Demo: Programmatic control
+    var currentRotation by remember { mutableStateOf(0f) }
+    var currentZoom by remember { mutableStateOf(1f) }
+    var currentPan by remember { mutableStateOf(Offset.Zero) }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -204,7 +211,6 @@ private fun MainContent(
             modifier = Modifier.align(Alignment.BottomStart),
             actions = {
 
-
                 IconButton(
                     onClick = {
                         onSelectionPageMenuClicked(SelectionPage.Properties)
@@ -227,6 +233,20 @@ private fun MainContent(
                 IconButton(
                     onClick = { crop = true }) {
                     Icon(Icons.Filled.Crop, contentDescription = "Crop Image")
+                }
+
+                // Demo: Programmatic rotation control
+                IconButton(
+                    onClick = {
+                        currentRotation = (currentRotation + 90f) % 360f
+                        // Note: In real usage, you would need to access the CropState
+                        // This is just a demo of the concept
+                    }
+                ) {
+                    Icon(
+                        Icons.Filled.RotateRight,
+                        contentDescription = "Rotate 90°",
+                    )
                 }
             },
             floatingActionButton = {
