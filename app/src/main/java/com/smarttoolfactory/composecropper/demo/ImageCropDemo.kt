@@ -160,7 +160,7 @@ private fun MainContent(
 
     val imageBitmapLarge = ImageBitmap.imageResource(
         LocalContext.current.resources,
-        R.drawable.landscape5
+        R.drawable.landscape1
     )
 
     var imageBitmap by remember { mutableStateOf(imageBitmapLarge) }

@@ -267,25 +267,36 @@ abstract class CropState internal constructor(
 
         val panX = animatablePanX.targetValue
         val panY = animatablePanY.targetValue
-
-        val left = (containerWidth - originalDrawWidth) / 2
-        val top = (containerHeight - originalDrawHeight) / 2
-
         val zoom = animatableZoom.targetValue
+        val rotation = animatableRotation.targetValue
 
-        val newWidth = originalDrawWidth * zoom
-        val newHeight = originalDrawHeight * zoom
+        // Calculate rotated dimensions
+        val rotatedWidth = if (rotation % 180 == 0f) {
+            originalDrawWidth * zoom
+        } else {
+            originalDrawHeight * zoom
+        }
+        
+        val rotatedHeight = if (rotation % 180 == 0f) {
+            originalDrawHeight * zoom
+        } else {
+            originalDrawWidth * zoom
+        }
+
+        // Calculate center position
+        val centerX = containerWidth / 2f
+        val centerY = containerHeight / 2f
+
+        // Calculate offset considering rotation
+        val offsetX = centerX - rotatedWidth / 2f + panX
+        val offsetY = centerY - rotatedHeight / 2f + panY
 
         return Rect(
-            offset = Offset(
-                left - (newWidth - originalDrawWidth) / 2 + panX,
-                top - (newHeight - originalDrawHeight) / 2 + panY,
-            ),
-            size = Size(newWidth, newHeight)
+            offset = Offset(offsetX, offsetY),
+            size = Size(rotatedWidth, rotatedHeight)
         )
     }
 
-    // TODO Add resetting back to bounds for rotated state as well
     /**
      * Resets to bounds with animation and resets tracking for fling animation.
      * Changes pan, zoom and rotation to valid bounds based on [drawAreaRect] and [overlayRect]
@@ -296,6 +307,7 @@ abstract class CropState internal constructor(
         animationSpec: AnimationSpec<Float> = tween(400)
     ) {
         val zoom = zoom.coerceAtLeast(MIN_OVERLAY_RATIO)
+        val rotation = animatableRotation.targetValue
 
         // Calculate new pan based on overlay
         val newDrawAreaRect = calculateValidImageDrawRect(overlayRect, drawAreaRect)
@@ -309,8 +321,20 @@ abstract class CropState internal constructor(
         val widthChange = newDrawAreaRect.width - drawAreaRect.width
         val heightChange = newDrawAreaRect.height - drawAreaRect.height
 
-        val panXChange = leftChange + widthChange / 2
-        val panYChange = topChange + heightChange / 2
+        // Adjust pan calculation based on rotation
+        val panXChange = if (rotation % 180 == 0f) {
+            leftChange + widthChange / 2
+        } else {
+            // For rotated images, adjust pan calculation
+            leftChange + heightChange / 2
+        }
+        
+        val panYChange = if (rotation % 180 == 0f) {
+            topChange + heightChange / 2
+        } else {
+            // For rotated images, adjust pan calculation
+            topChange + widthChange / 2
+        }
 
         val newPanX = pan.x + panXChange
         val newPanY = pan.y + panYChange
@@ -358,16 +382,30 @@ abstract class CropState internal constructor(
      * @param rectDrawArea rectangle of image that is being drawn
      */
     private fun calculateValidImageDrawRect(rectOverlay: Rect, rectDrawArea: Rect): Rect {
+        val rotation = animatableRotation.targetValue
+
+        // Adjust calculation based on rotation
+        val effectiveOverlayWidth = if (rotation % 180 == 0f) {
+            rectOverlay.width
+        } else {
+            rectOverlay.height
+        }
+
+        val effectiveOverlayHeight = if (rotation % 180 == 0f) {
+            rectOverlay.height
+        } else {
+            rectOverlay.width
+        }
 
         var width = rectDrawArea.width
         var height = rectDrawArea.height
 
-        if (width < rectOverlay.width) {
-            width = rectOverlay.width
+        if (width < effectiveOverlayWidth) {
+            width = effectiveOverlayWidth
         }
 
-        if (height < rectOverlay.height) {
-            height = rectOverlay.height
+        if (height < effectiveOverlayHeight) {
+            height = effectiveOverlayHeight
         }
 
         var rectImageArea = Rect(offset = rectDrawArea.topLeft, size = Size(width, height))
@@ -392,6 +430,18 @@ abstract class CropState internal constructor(
     }
 
     /**
+     * Calculate effective aspect ratio based on current rotation
+     */
+    private fun getEffectiveAspectRatio(baseAspectRatio: Float): Float {
+        val rotation = animatableRotation.targetValue
+        return if (rotation % 180 == 0f) {
+            baseAspectRatio
+        } else {
+            1f / baseAspectRatio
+        }
+    }
+
+    /**
      * Create [Rect] to draw overlay based on selected aspect ratio
      */
     internal fun getOverlayFromAspectRatio(
@@ -405,10 +455,13 @@ abstract class CropState internal constructor(
         if (aspectRatio == AspectRatio.Original) {
             val imageAspectRatio = imageSize.width.toFloat() / imageSize.height.toFloat()
 
+            // Adjust aspect ratio calculation based on rotation
+            val effectiveAspectRatio = getEffectiveAspectRatio(imageAspectRatio)
+
             // Maximum width and height overlay rectangle can be measured with
             val overlayWidthMax = drawAreaWidth.coerceAtMost(containerWidth * coefficient)
             val overlayHeightMax =
-                (overlayWidthMax / imageAspectRatio).coerceAtMost(containerHeight * coefficient)
+                (overlayWidthMax / effectiveAspectRatio).coerceAtMost(containerHeight * coefficient)
 
             val offsetX = (containerWidth - overlayWidthMax) / 2f
             val offsetY = (containerHeight - overlayHeightMax) / 2f
@@ -424,12 +477,15 @@ abstract class CropState internal constructor(
 
         val aspectRatioValue = aspectRatio.value
 
+        // Adjust aspect ratio calculation based on rotation
+        val effectiveAspectRatio = getEffectiveAspectRatio(aspectRatioValue)
+
         var width = overlayWidthMax
-        var height = overlayWidthMax / aspectRatioValue
+        var height = overlayWidthMax / effectiveAspectRatio
 
         if (height > overlayHeightMax) {
             height = overlayHeightMax
-            width = height * aspectRatioValue
+            width = height * effectiveAspectRatio
         }
 
         val offsetX = (containerWidth - width) / 2f
@@ -457,23 +513,79 @@ abstract class CropState internal constructor(
         // This is valid rectangle that contains crop area inside overlay
         val newRect = calculateValidImageDrawRect(overlayRect, drawAreaRect)
 
+        val rotation = animatableRotation.targetValue
+
+        // Calculate crop rect considering rotation
+        return if (rotation % 180 == 0f) {
+            // No dimension swap needed for 0° and 180°
+            calculateCropRectNormal(newRect, overlayRect, bitmapWidth, bitmapHeight)
+        } else {
+            // Dimensions are swapped for 90° and 270°
+            calculateCropRectRotated(newRect, overlayRect, bitmapWidth, bitmapHeight)
+        }
+    }
+
+    /**
+     * Calculate crop rectangle for normal orientation (0° or 180°)
+     */
+    private fun calculateCropRectNormal(
+        drawRect: Rect,
+        overlayRect: Rect,
+        bitmapWidth: Int,
+        bitmapHeight: Int
+    ): Rect {
         val overlayWidth = overlayRect.width
         val overlayHeight = overlayRect.height
 
-        val drawAreaWidth = newRect.width
-        val drawAreaHeight = newRect.height
+        val drawAreaWidth = drawRect.width
+        val drawAreaHeight = drawRect.height
 
         val widthRatio = overlayWidth / drawAreaWidth
         val heightRatio = overlayHeight / drawAreaHeight
 
-        val diffLeft = overlayRect.left - newRect.left
-        val diffTop = overlayRect.top - newRect.top
+        val diffLeft = overlayRect.left - drawRect.left
+        val diffTop = overlayRect.top - drawRect.top
 
         val croppedBitmapLeft = (diffLeft * (bitmapWidth / drawAreaWidth))
         val croppedBitmapTop = (diffTop * (bitmapHeight / drawAreaHeight))
 
         val croppedBitmapWidth = bitmapWidth * widthRatio
         val croppedBitmapHeight = bitmapHeight * heightRatio
+
+        return Rect(
+            offset = Offset(croppedBitmapLeft, croppedBitmapTop),
+            size = Size(croppedBitmapWidth, croppedBitmapHeight)
+        )
+    }
+
+    /**
+     * Calculate crop rectangle for rotated orientation (90° or 270°)
+     */
+    private fun calculateCropRectRotated(
+        drawRect: Rect,
+        overlayRect: Rect,
+        bitmapWidth: Int,
+        bitmapHeight: Int
+    ): Rect {
+        // For rotated images, overlay dimensions are swapped relative to draw area
+        val overlayWidth = overlayRect.height  // Swapped
+        val overlayHeight = overlayRect.width  // Swapped
+
+        val drawAreaWidth = drawRect.height    // Swapped
+        val drawAreaHeight = drawRect.width    // Swapped
+
+        val widthRatio = overlayWidth / drawAreaWidth
+        val heightRatio = overlayHeight / drawAreaHeight
+
+        val diffLeft = overlayRect.left - drawRect.left
+        val diffTop = overlayRect.top - drawRect.top
+
+        // Apply rotation transformation to coordinates
+        val croppedBitmapLeft = (diffTop * (bitmapWidth / drawAreaHeight))  // Swapped
+        val croppedBitmapTop = (diffLeft * (bitmapHeight / drawAreaWidth))  // Swapped
+
+        val croppedBitmapWidth = bitmapHeight * widthRatio   // Swapped
+        val croppedBitmapHeight = bitmapWidth * heightRatio  // Swapped
 
         return Rect(
             offset = Offset(croppedBitmapLeft, croppedBitmapTop),

@@ -358,6 +358,18 @@ class DynamicCropState internal constructor(
     }
 
     /**
+     * Calculate effective aspect ratio based on current rotation
+     */
+    private fun getEffectiveAspectRatio(baseAspectRatio: Float): Float {
+        val rotation = animatableRotation.targetValue
+        return if (rotation % 180 == 0f) {
+            baseAspectRatio
+        } else {
+            1f / baseAspectRatio
+        }
+    }
+
+    /**
      * Update overlay rectangle based on touch gesture
      */
     private fun updateOverlayRect(
@@ -377,6 +389,9 @@ class DynamicCropState internal constructor(
         val screenPositionX = position.x + distanceToEdgeFromTouch.x
         val screenPositionY = position.y + distanceToEdgeFromTouch.y
 
+        // Adjust aspect ratio based on rotation
+        val effectiveAspectRatio = getEffectiveAspectRatio(aspectRatio)
+
         return when (touchRegion) {
 
             // Corners
@@ -389,7 +404,7 @@ class DynamicCropState internal constructor(
                     // If aspect ratio is fixed we need to calculate top position based on
                     // left position and aspect ratio
                     val width = rectTemp.right - left
-                    val height = width / aspectRatio
+                    val height = width / effectiveAspectRatio
                     rectTemp.bottom - height
                 } else {
                     screenPositionY.coerceAtMost(rectTemp.bottom - minDimension.height)
@@ -411,7 +426,7 @@ class DynamicCropState internal constructor(
                     // If aspect ratio is fixed we need to calculate bottom position based on
                     // left position and aspect ratio
                     val width = rectTemp.right - left
-                    val height = width / aspectRatio
+                    val height = width / effectiveAspectRatio
                     rectTemp.top + height
                 } else {
                     screenPositionY.coerceAtLeast(rectTemp.top + minDimension.height)
@@ -433,7 +448,7 @@ class DynamicCropState internal constructor(
                     // If aspect ratio is fixed we need to calculate top position based on
                     // right position and aspect ratio
                     val width = right - rectTemp.left
-                    val height = width / aspectRatio
+                    val height = width / effectiveAspectRatio
                     rectTemp.bottom - height
                 } else {
                     screenPositionY.coerceAtMost(rectTemp.bottom - minDimension.height)
@@ -457,7 +472,7 @@ class DynamicCropState internal constructor(
                     // If aspect ratio is fixed we need to calculate bottom position based on
                     // right position and aspect ratio
                     val width = right - rectTemp.left
-                    val height = width / aspectRatio
+                    val height = width / effectiveAspectRatio
                     rectTemp.top + height
                 } else {
                     screenPositionY.coerceAtLeast(rectTemp.top + minDimension.height)

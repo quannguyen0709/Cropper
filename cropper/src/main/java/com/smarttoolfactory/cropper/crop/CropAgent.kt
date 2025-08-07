@@ -3,6 +3,7 @@ package com.smarttoolfactory.cropper.crop
 import android.graphics.Bitmap
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.ImageBitmap
@@ -44,13 +45,26 @@ class CropAgent {
         rotation: Float = 0f // New rotation parameter
     ): ImageBitmap {
 
+        // Adjust crop rectangle based on rotation
+        val adjustedCropRect = if (rotation % 180 == 0f) {
+            // No adjustment needed for 0° and 180°
+            cropRect
+        } else {
+            // For 90° and 270°, we need to adjust the crop rectangle
+            // because the image dimensions are swapped
+            Rect(
+                offset = Offset(cropRect.top, cropRect.left),
+                size = Size(cropRect.height, cropRect.width)
+            )
+        }
+
         // Crop the bitmap normally. You could also choose to rotate the full image first.
         val croppedBitmap: Bitmap = Bitmap.createBitmap(
             imageBitmap.asAndroidBitmap(),
-            cropRect.left.toInt(),
-            cropRect.top.toInt(),
-            cropRect.width.toInt(),
-            cropRect.height.toInt(),
+            adjustedCropRect.left.toInt(),
+            adjustedCropRect.top.toInt(),
+            adjustedCropRect.width.toInt(),
+            adjustedCropRect.height.toInt(),
         )
 
         val imageToCrop = croppedBitmap
